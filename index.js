@@ -14,7 +14,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const uri =process.env.REACT_APP_CONNECTION;
+const uri = process.env.REACT_APP_CONNECTION;
 
 const client = new MongoClient(uri, {
 	useNewUrlParser: true,
@@ -22,12 +22,37 @@ const client = new MongoClient(uri, {
 	serverApi: ServerApiVersion.v1,
 });
 
+//varify jwr from here
+
+function verifyJWT(req, res, next) {
+	const authHeader = req.headers.authorization;
+	if (!authHeader) {
+		return res.status(401).send("unauthorized access");
+	}
+
+	const token = authHeader.split(" ")[1];
+
+	jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+		if (err) {
+			return res.status(403).send({ message: "forbidden access" });
+		}
+		req.decoded = decoded;
+		next();
+	});
+}
+
 // const uri = process.env.REACT_APP_CONNECTION;
 
 // const collection = client.db("sample_analytics").collection("accounts");
 const usedPhoneCollection = client
 	.db("usedPhoneCollection")
 	.collection("categoriesWithBrands");
+const phonesCollections = client
+	.db("usedPhoneCollection")
+	.collection("allPhones");
+const bdLocationCollections = client
+	.db("usedPhoneCollection")
+	.collection("bdLocatiion");
 const customers = client.db("sample_analytics").collection("customers");
 // perform actions on the collection object
 
@@ -65,27 +90,47 @@ app.post("/", async (req, res) => {
 	}
 });
 
+app.get("/jwt", async (req, res) => {
+	const email = req.query.email;
+	const query = { email: email };
+	const user = await usersCollection.findOne(query);
+	if (user) {
+		const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+			expiresIn: "1w",
+		});
+		return res.send({ accessToken: token });
+	}
+	res.status(403).send({ accessToken: "" });
+});
+
+app.get("/brandname", async (req, res) => {
+	const query = {};
+	const result = await usedPhoneCollection
+		.find(query)
+		.project({ brand: 1 })
+		.toArray();
+	res.send(result);
+});
+app.get("/divisionsname", async (req, res) => {
+	const query = {};
+	const divisionsname = await bdLocationCollections.find(query).toArray();
+	res.send(divisionsname);
+});
+
+app.post("/phones", async (req, res) => {
+	const phone = req.body;
+	console.log(phone);
+	// TODO: make sure you do not enter duplicate phone email
+	// only insert phones if the phone doesn't exist in the database
+	const result = await phonesCollections.insertOne(phone);
+	res.send(result);
+});
+
 // Replace the uri string with your MongoDB deployment's connection string.
 
 //
-// 
-// 
-function verifyJWT(req, res, next) {
-	const authHeader = req.headers.authorization;
-	if (!authHeader) {
-		return res.status(401).send("unauthorized access");
-	}
-
-	const token = authHeader.split(" ")[1];
-
-	jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
-		if (err) {
-			return res.status(403).send({ message: "forbidden access" });
-		}
-		req.decoded = decoded;
-		next();
-	});
-}
+//
+//
 
 // async function run() {
 // 	try {
@@ -290,18 +335,7 @@ function verifyJWT(req, res, next) {
 // 			res.send(result);
 // 		});
 
-// 		app.get("/jwt", async (req, res) => {
-// 			const email = req.query.email;
-// 			const query = { email: email };
-// 			const user = await usersCollection.findOne(query);
-// 			if (user) {
-// 				const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
-// 					expiresIn: "1h",
-// 				});
-// 				return res.send({ accessToken: token });
-// 			}
-// 			res.status(403).send({ accessToken: "" });
-// 		});
+//
 
 // 		app.get("/users", async (req, res) => {
 // 			const query = {};
