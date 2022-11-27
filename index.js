@@ -70,6 +70,16 @@ app.get("/categoriesWithBrands", async (req, res) => {
 		console.log(error);
 	}
 });
+app.get("/allphones/all", async (req, res) => {
+	try {
+		const query = {};
+		const cursor = await phonesCollections.find(query).toArray();
+		// const orders = cursor.toArray();
+		res.send(cursor);
+	} catch (error) {
+		console.log(error);
+	}
+});
 
 /////categoriesWithBrands information insert  from here
 app.post("/", async (req, res) => {
