@@ -33,6 +33,9 @@ const bdLocationCollections = client
 	.db("usedPhoneCollection")
 	.collection("bdLocatiion");
 const usersCollection = client.db("usedPhoneCollection").collection("users");
+const userscommencesDb = client
+	.db("usedPhoneCollection")
+	.collection("userscommences");
 const customers = client.db("sample_analytics").collection("customers");
 // perform actions on the collection object
 
@@ -175,6 +178,37 @@ app.post("/phones", async (req, res) => {
 		res.send(result);
 	} catch (error) {
 		console.log(error.bgRed);
+	}
+});
+app.post("/userscommences", async (req, res) => {
+	try {
+		const phone = req.body;
+		console.log(phone);
+		// TODO: make sure you do not enter duplicate phone email
+		// only insert phones if the phone doesn't exist in the database
+		const result = await userscommencesDb.insertOne(phone);
+		res.send(result);
+	} catch (error) {
+		console.log(error.bgRed);
+	}
+});
+
+app.get("/userscommences", async (req, res) => {
+	try {
+		const query = {};
+		const users = await userscommencesDb.find(query).limit(6).toArray();
+		res.send(users);
+	} catch (error) {
+		console.log("error from usercommences", error);
+	}
+});
+app.get("/userscommencesall", async (req, res) => {
+	try {
+		const query = {};
+		const users = await userscommencesDb.find(query).limit().toArray();
+		res.send(users);
+	} catch (error) {
+		console.log("error from usercommences", error);
 	}
 });
 
