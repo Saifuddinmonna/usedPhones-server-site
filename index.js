@@ -60,7 +60,7 @@ function verifyJWT(req, res, next) {
 }
 
 ///categoriesWithBrands information send from here
-app.get("/", async (req, res) => {
+app.get("/categoriesWithBrands", async (req, res) => {
 	try {
 		const query = {};
 		const cursor = await usedPhoneCollection.find(query).toArray();
