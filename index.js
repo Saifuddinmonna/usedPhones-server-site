@@ -22,6 +22,20 @@ const client = new MongoClient(uri, {
 	serverApi: ServerApiVersion.v1,
 });
 
+///database collection create here
+const usedPhoneCollection = client
+	.db("usedPhoneCollection")
+	.collection("categoriesWithBrands");
+const phonesCollections = client
+	.db("usedPhoneCollection")
+	.collection("allPhones");
+const bdLocationCollections = client
+	.db("usedPhoneCollection")
+	.collection("bdLocatiion");
+const usersCollection = client.db("usedPhoneCollection").collection("users");
+const customers = client.db("sample_analytics").collection("customers");
+// perform actions on the collection object
+
 //varify jwr from here
 
 function verifyJWT(req, res, next) {
@@ -32,7 +46,11 @@ function verifyJWT(req, res, next) {
 
 	const token = authHeader.split(" ")[1];
 
-	jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+		console.log(
+			"jwt varify err toker console",
+			` ${process.env.ACCESS_TOKEN_SECRET}`,
+		);
 		if (err) {
 			return res.status(403).send({ message: "forbidden access" });
 		}
@@ -41,28 +59,9 @@ function verifyJWT(req, res, next) {
 	});
 }
 
-// const uri = process.env.REACT_APP_CONNECTION;
-
-// const collection = client.db("sample_analytics").collection("accounts");
-const usedPhoneCollection = client
-	.db("usedPhoneCollection")
-	.collection("categoriesWithBrands");
-const phonesCollections = client
-	.db("usedPhoneCollection")
-	.collection("allPhones");
-const bdLocationCollections = client
-	.db("usedPhoneCollection")
-	.collection("bdLocatiion");
-const customers = client.db("sample_analytics").collection("customers");
-// perform actions on the collection object
-
+///categoriesWithBrands information send from here
 app.get("/", async (req, res) => {
 	try {
-		// const doc = {
-		// 	title: "Record of a Shriveled Datum",
-		// 	content: "No bytes, no problem. Just insert a document, in MongoDB",
-		// };
-		// console.log("connection i sol okk");
 		const query = {};
 		const cursor = await usedPhoneCollection.find(query).toArray();
 		// const orders = cursor.toArray();
@@ -72,6 +71,7 @@ app.get("/", async (req, res) => {
 	}
 });
 
+/////categoriesWithBrands information insert  from here
 app.post("/", async (req, res) => {
 	try {
 		console.log("connection i sol okk");
@@ -90,19 +90,54 @@ app.post("/", async (req, res) => {
 	}
 });
 
+// jwt or access token start from here
+
 app.get("/jwt", async (req, res) => {
-	const email = req.query.email;
-	const query = { email: email };
-	const user = await usersCollection.findOne(query);
-	if (user) {
-		const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
-			expiresIn: "1w",
-		});
-		return res.send({ accessToken: token });
+	try {
+		const email = req.query.email;
+		const query = { email: email };
+		const user = await usersCollection.findOne(query);
+		if (user) {
+			const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, {
+				expiresIn: "7d",
+			});
+			return res.send({ accessToken: token });
+		}
+		res.status(403).send({ accessToken: "" });
+	} catch (error) {
+		console.log(
+			"err from jwt",
+			error,
+			console.log(
+				" jwt get toker console",
+				process.env.ACCESS_TOKEN_SECRET,
+			),
+		);
 	}
-	res.status(403).send({ accessToken: "" });
 });
 
+// try {
+// } catch (error) {
+// 	console.log(error.bgRed);
+// }
+
+// I use verifyAdmin after verifyJWT
+const verifyAdmin = async (req, res, next) => {
+	try {
+		const decodedEmail = req.decoded.email;
+		const query = { email: decodedEmail };
+		const user = await usersCollection.findOne(query);
+
+		if (user?.role !== "admin") {
+			return res.status(403).send({ message: "forbidden access" });
+		}
+		next();
+	} catch (error) {
+		console.log("err from admin varify", error);
+	}
+};
+
+//brand name informaition send from here
 app.get("/brandname", async (req, res) => {
 	const query = {};
 	const result = await usedPhoneCollection
@@ -111,20 +146,94 @@ app.get("/brandname", async (req, res) => {
 		.toArray();
 	res.send(result);
 });
+
+//division name information send from here
 app.get("/divisionsname", async (req, res) => {
 	const query = {};
 	const divisionsname = await bdLocationCollections.find(query).toArray();
 	res.send(divisionsname);
 });
 
+//add phone insert from here
 app.post("/phones", async (req, res) => {
-	const phone = req.body;
-	console.log(phone);
-	// TODO: make sure you do not enter duplicate phone email
-	// only insert phones if the phone doesn't exist in the database
-	const result = await phonesCollections.insertOne(phone);
+	try {
+		const phone = req.body;
+		console.log(phone);
+		// TODO: make sure you do not enter duplicate phone email
+		// only insert phones if the phone doesn't exist in the database
+		const result = await phonesCollections.insertOne(phone);
+		res.send(result);
+	} catch (error) {
+		console.log(error.bgRed);
+	}
+});
+
+// login user collection add user insert from here
+app.post("/users", async (req, res) => {
+	const user = req.body;
+	console.log(user);
+	// TODO: make sure you do not enter duplicate user email
+	// only insert users if the user doesn't exist in the database
+	const result = await usersCollection.insertOne(user);
 	res.send(result);
 });
+
+app.get("/users", async (req, res) => {
+	const query = {};
+	const users = await usersCollection.find(query).toArray();
+	res.send(users);
+});
+
+app.get("/users/admin/:email", async (req, res) => {
+	const email = req.params.email;
+	const query = { email };
+	const user = await usersCollection.findOne(query);
+	res.send({ isAdmin: user?.role === "admin" });
+});
+
+app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
+	console.log("admin making confirm");
+	const id = req.params.id;
+	const filter = { _id: ObjectId(id) };
+	const options = { upsert: true };
+	const updatedDoc = {
+		$set: {
+			role: "admin",
+		},
+	};
+	const result = await usersCollection.updateOne(filter, updatedDoc, options);
+	console.log("admin making confirm");
+	res.send(result);
+});
+app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
+	const id = req.params.id;
+	const filter = { _id: ObjectId(id) };
+	const result = await usersCollection.deleteOne(filter);
+	console.log("delete process confirm");
+	res.send(result);
+});
+
+// app.put(
+// // 			"/users/admin/:id",
+// // 			verifyJWT,
+// // 			verifyAdmin,
+// // 			async (req, res) => {
+// // 				const id = req.params.id;
+// // 				const filter = { _id: ObjectId(id) };
+// // 				const options = { upsert: true };
+// // 				const updatedDoc = {
+// // 					$set: {
+// // 						role: "admin",
+// // 					},
+// // 				};
+// // 				const result = await usersCollection.updateOne(
+// // 					filter,
+// // 					updatedDoc,
+// // 					options,
+// // 				);
+// // 				res.send(result);
+// // 			},
+// // 		);
 
 // Replace the uri string with your MongoDB deployment's connection string.
 
@@ -148,17 +257,7 @@ app.post("/phones", async (req, res) => {
 // 			.db("usedPhone")
 // 			.collection("payments");
 
-// 		// NOTE: make sure you use verifyAdmin after verifyJWT
-// 		const verifyAdmin = async (req, res, next) => {
-// 			const decodedEmail = req.decoded.email;
-// 			const query = { email: decodedEmail };
-// 			const user = await usersCollection.findOne(query);
-
-// 			if (user?.role !== "admin") {
-// 				return res.status(403).send({ message: "forbidden access" });
-// 			}
-// 			next();
-// 		};
+//
 
 // 		// Use Aggregate to query multiple collection and then merge data
 // 		app.get("/appointmentOptions", async (req, res) => {
@@ -337,50 +436,6 @@ app.post("/phones", async (req, res) => {
 
 //
 
-// 		app.get("/users", async (req, res) => {
-// 			const query = {};
-// 			const users = await usersCollection.find(query).toArray();
-// 			res.send(users);
-// 		});
-
-// 		app.get("/users/admin/:email", async (req, res) => {
-// 			const email = req.params.email;
-// 			const query = { email };
-// 			const user = await usersCollection.findOne(query);
-// 			res.send({ isAdmin: user?.role === "admin" });
-// 		});
-
-// 		app.post("/users", async (req, res) => {
-// 			const user = req.body;
-// 			console.log(user);
-// 			// TODO: make sure you do not enter duplicate user email
-// 			// only insert users if the user doesn't exist in the database
-// 			const result = await usersCollection.insertOne(user);
-// 			res.send(result);
-// 		});
-
-// 		app.put(
-// 			"/users/admin/:id",
-// 			verifyJWT,
-// 			verifyAdmin,
-// 			async (req, res) => {
-// 				const id = req.params.id;
-// 				const filter = { _id: ObjectId(id) };
-// 				const options = { upsert: true };
-// 				const updatedDoc = {
-// 					$set: {
-// 						role: "admin",
-// 					},
-// 				};
-// 				const result = await usersCollection.updateOne(
-// 					filter,
-// 					updatedDoc,
-// 					options,
-// 				);
-// 				res.send(result);
-// 			},
-// 		);
-
 // 		// temporary to update price field on appointment options
 // 		// app.get('/addPrice', async (req, res) => {
 // 		//     const filter = {}
@@ -406,12 +461,7 @@ app.post("/phones", async (req, res) => {
 // 			res.send(result);
 // 		});
 
-// 		app.delete("/doctors/:id", verifyJWT, verifyAdmin, async (req, res) => {
-// 			const id = req.params.id;
-// 			const filter = { _id: ObjectId(id) };
-// 			const result = await doctorsCollection.deleteOne(filter);
-// 			res.send(result);
-// 		});
+//
 // 	} finally {
 // 	}
 // }
@@ -422,4 +472,4 @@ app.post("/phones", async (req, res) => {
 // 	res.send("doctors portal server is running");
 // });
 
-app.listen(port, () => console.log(`Doctors portal running on ${port}`));
+app.listen(port, () => console.log(`Used Phone running on ${port}`));
