@@ -151,6 +151,11 @@ const verifyAdmin = async (req, res, next) => {
 };
 
 //brand name informaition send from here
+app.get("/", async (req, res) => {
+	console.log("Used Phones Server Is running");
+
+	res.send("Used Phones Server Is running");
+});
 app.get("/brandname", async (req, res) => {
 	const query = {};
 	const result = await usedPhoneCollection
@@ -221,6 +226,14 @@ app.get("/userscommencesall", async (req, res) => {
 app.post("/users", async (req, res) => {
 	const user = req.body;
 	console.log(user);
+	// TODO: make sure you do not enter duplicate user email
+	// only insert users if the user doesn't exist in the database
+	const result = await usersCollection.insertOne(user);
+	res.send(result);
+});
+app.post("/usersseller", async (req, res) => {
+	const user = req.body;
+	console.log("seller signup sucessfully", user);
 	// TODO: make sure you do not enter duplicate user email
 	// only insert users if the user doesn't exist in the database
 	const result = await usersCollection.insertOne(user);
