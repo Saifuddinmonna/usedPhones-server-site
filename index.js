@@ -166,6 +166,11 @@ app.get("/divisionsname", async (req, res) => {
 	const divisionsname = await bdLocationCollections.find(query).toArray();
 	res.send(divisionsname);
 });
+app.get("/divisionsnameforreview", async (req, res) => {
+	const query = {};
+	const divisionsname = await bdLocationCollections.find(query).toArray();
+	res.send(divisionsname);
+});
 
 //add phone insert from here
 app.post("/phones", async (req, res) => {
