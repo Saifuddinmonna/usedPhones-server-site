@@ -1,14 +1,14 @@
 const express = require("express");
+
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const { query } = require("express");
+const app = express();
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const port = process.env.PORT || 5000;
-
-const app = express();
 
 // middleware
 app.use(cors());
@@ -33,6 +33,10 @@ const bdLocationCollections = client
 	.db("usedPhoneCollection")
 	.collection("bdLocatiion");
 const usersCollection = client.db("usedPhoneCollection").collection("users");
+const ordersCollection = client.db("usedPhoneCollection").collection("orders");
+const paymentsCollection = client
+	.db("usedPhoneCollection")
+	.collection("payments");
 const userscommencesDb = client
 	.db("usedPhoneCollection")
 	.collection("userscommences");
@@ -51,7 +55,7 @@ function verifyJWT(req, res, next) {
 	}
 
 	const token = authHeader.split(" ")[1];
-
+	console.log("from token ", token);
 	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
 		console.log(
 			"jwt varify err toker console",
@@ -65,12 +69,63 @@ function verifyJWT(req, res, next) {
 	});
 }
 
+// jwt or access token start from here
+
+app.get("/jwt", async (req, res) => {
+	try {
+		const email = req.query.email;
+		const query = { email: email };
+		const user = await usersCollection.findOne(query);
+		if (user) {
+			const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, {
+				expiresIn: "20d",
+			});
+			return res.send({ accessToken: token });
+		}
+		res.status(403).send({ accessToken: "" });
+	} catch (error) {
+		console.log(
+			"err from jwt",
+			error,
+			console.log(
+				" jwt get toker console",
+				process.env.ACCESS_TOKEN_SECRET,
+			),
+		);
+	}
+});
+
 ///categoriesWithBrands information send from here
 app.get("/categoriesWithBrands", async (req, res) => {
 	try {
 		const query = {};
 		const cursor = await usedPhoneCollection.find(query).toArray();
 		// const orders = cursor.toArray();
+		res.send(cursor);
+		console.log("query key", req.query);
+	} catch (error) {
+		console.log(error);
+	}
+});
+app.get("/allphones/all", async (req, res) => {
+	try {
+		const query = {};
+		const cursor = await phonesCollections.find(query).toArray();
+		// const orders = cursor.toArray();
+		res.send(cursor);
+	} catch (error) {
+		console.log(error);
+	}
+});
+app.get("/dashboard/myproducts/:email", async (req, res) => {
+	try {
+		const email = req.params.email;
+		const decodedEmail = req.query.email;
+		const query = { email: decodedEmail };
+		const cursor = await phonesCollections.find(query).toArray();
+		// const orders = cursor.toArray();
+		console.log("myproducts are connected with email", email, decodedEmail);
+		// console.log("myproducts are connected", cursor);
 		res.send(cursor);
 	} catch (error) {
 		console.log(error);
@@ -82,6 +137,35 @@ app.get("/allphones/all", async (req, res) => {
 		const cursor = await phonesCollections.find(query).toArray();
 		// const orders = cursor.toArray();
 		res.send(cursor);
+	} catch (error) {
+		console.log(error);
+	}
+});
+
+app.get("/allphones/", async (req, res) => {
+	try {
+		const decodedbrand = req.query.brand;
+		const query = { brand: decodedbrand };
+		const cursor = await phonesCollections.find(query).toArray();
+		// const orders = cursor.toArray();
+		console.log("console or bran collection", decodedbrand, cursor);
+		res.send(cursor);
+	} catch (error) {
+		console.log(error);
+	}
+});
+
+app.get("/category/:id", async (req, res) => {
+	try {
+		console.log("hit in category id");
+		const id = req.params.id;
+		const query = { _id: ObjectId(id) };
+		const cursor = await usedPhoneCollection.findOne(query);
+
+		const query2 = { brand: cursor.brand };
+		console.log("hit in category id", query2);
+		const cursor2 = await phonesCollections.find(query2).toArray();
+		res.send(cursor2);
 	} catch (error) {
 		console.log(error);
 	}
@@ -103,32 +187,6 @@ app.post("/", async (req, res) => {
 		console.log("insert ok");
 	} catch (error) {
 		console.log("post error start here", error);
-	}
-});
-
-// jwt or access token start from here
-
-app.get("/jwt", async (req, res) => {
-	try {
-		const email = req.query.email;
-		const query = { email: email };
-		const user = await usersCollection.findOne(query);
-		if (user) {
-			const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, {
-				expiresIn: "7d",
-			});
-			return res.send({ accessToken: token });
-		}
-		res.status(403).send({ accessToken: "" });
-	} catch (error) {
-		console.log(
-			"err from jwt",
-			error,
-			console.log(
-				" jwt get toker console",
-				process.env.ACCESS_TOKEN_SECRET,
-			),
-		);
 	}
 });
 
@@ -193,6 +251,31 @@ app.post("/phones", async (req, res) => {
 		console.log(error.bgRed);
 	}
 });
+
+app.delete("/myproducts/delete/id/:id/email/:email", async (req, res) => {
+	try {
+		const id = req.params.id;
+		const email = req.params.email;
+		console.log("connection paise", id, email);
+		const query = {
+			_id: ObjectId(id),
+			// sellerEmail: email
+		};
+		const result = await phonesCollections.deleteOne(query);
+		console.log("connection paise", id, email, query);
+		if (result.deletedCount === 1) {
+			res.send("Successfully deleted one document.");
+		} else {
+			console.log("No documents matched the query. Deleted 0 documents.");
+			res.send("No documents matched the query. Deleted 0 documents.");
+		}
+		console.log("Got a DELETE request at /user");
+		res.send("Got a DELETE request at /user");
+	} catch (error) {
+		console.log(error.bgRed);
+	}
+});
+
 app.post("/userscommences", async (req, res) => {
 	try {
 		const phone = req.body;
@@ -249,11 +332,36 @@ app.get("/users", async (req, res) => {
 	res.send(users);
 });
 
+app.get("/sellers", async (req, res) => {
+	const query = { role: "seller" };
+	const sellers = await usersCollection.find(query).toArray();
+	res.send(sellers);
+});
+
+app.get("/buyers", async (req, res) => {
+	const query = { role: "buyer" };
+	const users = await usersCollection.find(query).toArray();
+	res.send(users);
+});
+
 app.get("/users/admin/:email", async (req, res) => {
 	const email = req.params.email;
 	const query = { email };
 	const user = await usersCollection.findOne(query);
 	res.send({ isAdmin: user?.role === "admin" });
+});
+app.get("/users/seller/:email", async (req, res) => {
+	const email = req.params.email;
+	const query = { email };
+	const user = await usersCollection.findOne(query);
+	res.send({ isSeller: user?.role === "seller" });
+});
+
+app.get("/users/buyer/:email", async (req, res) => {
+	const email = req.params.email;
+	const query = { email };
+	const user = await usersCollection.findOne(query);
+	res.send({ isBuyer: user?.role === "buyer" });
 });
 
 app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
@@ -270,6 +378,35 @@ app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
 	console.log("admin making confirm");
 	res.send(result);
 });
+app.put("/users/verify/:id", verifyJWT, verifyAdmin, async (req, res) => {
+	console.log("admin making confirm");
+	const id = req.params.id;
+	const filter = { _id: ObjectId(id) };
+	const options = { upsert: true };
+	const updatedDoc = {
+		$set: {
+			verification: "verified",
+		},
+	};
+	const result = await usersCollection.updateOne(filter, updatedDoc, options);
+	console.log("verify process confirm");
+	res.send(result);
+});
+app.put("/buyers/verify/:id", verifyJWT, verifyAdmin, async (req, res) => {
+	console.log("admin making confirm");
+	const id = req.params.id;
+	const filter = { _id: ObjectId(id) };
+	const options = { upsert: true };
+	const updatedDoc = {
+		$set: {
+			verification: "verified",
+		},
+	};
+	const result = await usersCollection.updateOne(filter, updatedDoc, options);
+	console.log("verify process confirm");
+	res.send(result);
+});
+
 app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
 	const id = req.params.id;
 	const filter = { _id: ObjectId(id) };
@@ -278,16 +415,31 @@ app.delete("/users/:id", verifyJWT, verifyAdmin, async (req, res) => {
 	res.send(result);
 });
 
-app.get("/bookings", verifyJWT, async (req, res) => {
+app.get("/bookings", async (req, res) => {
 	const email = req.query.email;
-	const decodedEmail = req.decoded.email;
-
-	if (email !== decodedEmail) {
-		return res.status(403).send({ message: "forbidden access" });
-	}
+	// console.log(" booking oders email check", email);
+	// const decodedEmail = req.decoded;
+	console.log(" booking oders decoded emailcheck email check", email);
+	// if (email !== decodedEmail) {
+	// 	return res.status(403).send({ message: "forbidden access" });
+	// }
 
 	const query = { email: email };
-	const bookings = await bookingsCollection.find(query).toArray();
+	const bookings = await ordersCollection.find(query).toArray();
+	console.log("my order s are gotten ");
+	res.send(bookings);
+});
+app.get("/bookingsemail", async (req, res) => {
+	const email = req.query.email;
+	// const decodedEmail = req.decoded.email;
+
+	// if (email !== decodedEmail) {
+	// 	return res.status(403).send({ message: "forbidden access" });
+	// }
+
+	const query = {};
+	const bookings = await ordersCollection.find(query).toArray();
+	console.log("my order s are gotten ");
 	res.send(bookings);
 });
 
@@ -295,30 +447,35 @@ app.get("/bookings", verifyJWT, async (req, res) => {
 
 //
 //
-app.get("/bookings/:id", async (req, res) => {
+
+app.get("/payment/:id", async (req, res) => {
 	const id = req.params.id;
 	const query = { _id: ObjectId(id) };
-	const booking = await bookingsCollection.findOne(query);
+	console.log("payment iid ok 1st");
+	const booking = await ordersCollection.findOne(query);
+	console.log("payment iid ok 2nd", booking);
+
 	res.send(booking);
 });
 
-app.post("/bookings", async (req, res) => {
+app.post("/ordering", async (req, res) => {
 	const booking = req.body;
-	console.log(booking);
+	console.log("from ordering", booking);
 	const query = {
-		appointmentDate: booking.appointmentDate,
+		orderingDate: booking.appointmentDate,
 		email: booking.email,
-		treatment: booking.treatment,
+		phoneName: booking.brand,
+		phoneModel: booking.phoneModel,
 	};
 
-	const alreadyBooked = await bookingsCollection.find(query).toArray();
+	const alreadyBooked = await ordersCollection.find(query).toArray();
 
 	if (alreadyBooked.length) {
 		const message = `You already have a booking on ${booking.appointmentDate}`;
 		return res.send({ acknowledged: false, message });
 	}
 
-	const result = await bookingsCollection.insertOne(booking);
+	const result = await ordersCollection.insertOne(booking);
 	res.send(result);
 });
 
@@ -326,11 +483,14 @@ app.post("/create-payment-intent", async (req, res) => {
 	const booking = req.body;
 	const price = booking.price;
 	const amount = price * 100;
-
+	console.log("from ocreating payment intend", booking);
 	const paymentIntent = await stripe.paymentIntents.create({
 		currency: "usd",
 		amount: amount,
 		payment_method_types: ["card"],
+	});
+	console.log("from ocreating payment intend2", {
+		clientSecret: paymentIntent.client_secret,
 	});
 	res.send({
 		clientSecret: paymentIntent.client_secret,
@@ -339,6 +499,7 @@ app.post("/create-payment-intent", async (req, res) => {
 
 app.post("/payments", async (req, res) => {
 	const payment = req.body;
+	console.log("from creating payment intend", payment);
 	const result = await paymentsCollection.insertOne(payment);
 	const id = payment.bookingId;
 	const filter = { _id: ObjectId(id) };
@@ -348,14 +509,10 @@ app.post("/payments", async (req, res) => {
 			transactionId: payment.transactionId,
 		},
 	};
-	const updatedResult = await bookingsCollection.updateOne(
-		filter,
-		updatedDoc,
-	);
+	console.log("from  paymentupdate doc");
+	const updatedResult = await ordersCollection.updateOne(filter, updatedDoc);
 	res.send(result);
 });
-
-
 
 // temporary to update price field on booking options
 app.get("/addPrice", async (req, res) => {
@@ -385,10 +542,5 @@ app.post("/sellers", verifyJWT, verifyAdmin, async (req, res) => {
 	const result = await doctorsCollection.insertOne(doctor);
 	res.send(result);
 });
-
-
-
-
-
 
 app.listen(port, () => console.log(`Used Phone running on ${port}`));
