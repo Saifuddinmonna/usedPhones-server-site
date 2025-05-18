@@ -14,6 +14,7 @@
   "dependencies": {
     "colors": "^1.4.0",
     "cors": "^2.8.5",
+    "doctors-portal-server": "file:",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "jsonwebtoken": "^8.5.1",

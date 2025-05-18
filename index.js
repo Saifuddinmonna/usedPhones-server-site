@@ -513,7 +513,26 @@ app.post("/payments", async (req, res) => {
 	const updatedResult = await ordersCollection.updateOne(filter, updatedDoc);
 	res.send(result);
 });
+// THIS IS THE NEW ROUTE YOU NEED TO ADD
+app.get("/allphones/:id", async (req, res) => {
+	try {
+		const id = req.params.id;
+		const query = { _id: ObjectId(id) };
+		const phone = await phonesCollections.findOne(query);
+		if (phone) {
+			res.send(phone);
+		} else {
+			res.status(404).send({ message: "Phone not found" });
+		}
+	} catch (error) {
+		console.log("Error fetching single phone by ID:", error);
+		res.status(500).send({ message: "Error fetching phone details" });
+	}
+});
 
+app.get("/allphones/", async (req, res) => {
+	try {
+		const decodedbrand = req.query.brand;
 // temporary to update price field on booking options
 app.get("/addPrice", async (req, res) => {
 	const filter = {};
