@@ -530,10 +530,6 @@ app.get("/allphones/:id", async (req, res) => {
 	}
 });
 
-app.get("/allphones/", async (req, res) => {
-	try {
-		const decodedbrand = req.query.brand;
-// temporary to update price field on booking options
 app.get("/addPrice", async (req, res) => {
 	const filter = {};
 	const options = { upsert: true };
